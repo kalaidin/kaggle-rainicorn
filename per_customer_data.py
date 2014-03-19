@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from functools import lru_cache
-from itertools import repeat, chain
+from itertools import chain
+from sklearn.feature_extraction import DictVectorizer
+import pickle
 
 from commons import *
 
@@ -61,10 +63,10 @@ def current_X(data, coverage=None):
     return [categorical_pair('current_' + coverage, _get_column_last_value(data, coverage))]
 
 
-@feature
-@categorical
-def location(data):
-    return _get_column_last_value(data, 'location')
+#@feature
+#@categorical
+#def location(data):
+#    return _get_column_last_value(data, 'location')
 
 
 @feature
@@ -153,11 +155,7 @@ def make_features(data_grouped_by_customer, features_list=None):
         else:
             customer, g, w, target = x
         row = dict(chain(*(f(g) for f in trs)))
-        row['_w'] = w
-        row['_customer'] = customer
-        for c, tar in zip(COVERAGE, target):
-            row['_%s' % c] = tar
-        yield row
+        yield customer, target, row, w
 
 
 @lru_cache(maxsize=None)
@@ -180,18 +178,34 @@ def slice_and_group(data):
             yield customer, data_subset, w, target
 
 
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-    all_data = read_data('train')
-    k = 0
-    for i in make_features(slice_and_group(all_data)):  # and save
-        print(i)
-        k += 1
-        if k > 20:
-            break
+def save(obj, file_name):
+    with open(os.path.join(DATA_DIR, file_name), 'wb') as f:
+        pickle.dump(obj, f)
 
-    #make_features(read_data('test').groupby('customer_ID'))  # and save
-    #for cv_i, (train_raw, test_raw) in enumerate(cv(all_data)):
-    #    make_features(slice_and_group(train_raw))  # and save
-    #    make_features(slice_and_group(test_raw))  # and save
+
+#if __name__ == '__main__':
+#    import doctest
+#    doctest.testmod()
+
+dv = DictVectorizer()
+train_data = read_data('train_head.csv')
+train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_data)))
+train_x = dv.fit_transform(train_x)
+save((dv, train_customers, train_y, train_x, train_weights), 'train.pickle')
+
+test_data = read_data('test_head.csv')
+test_customers, test_y, test_x, test_weights = zip(*make_features(test_data.groupby('customer_ID')))
+test_x = dv.transform(test_x)
+save((dv, test_customers, test_y, test_x, test_weights), 'test.pickle')
+
+for cv_i, (train_raw, test_raw) in enumerate(cv(train_data)):
+    dv = DictVectorizer()
+    train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_raw)))
+    train_x = dv.fit_transform(train_x)
+    save((dv, train_customers, train_y, train_x, train_weights), 'cv%02d_train.pickle' % cv_i)
+
+    test_customers, test_y, test_x, test_weights = zip(*make_features(slice_and_group(test_raw)))
+    test_x = dv.transform(test_x)
+    save((dv, test_customers, test_y, test_x, test_weights), 'cv%02d_test.pickle' % cv_i)
+
+

@@ -17,9 +17,9 @@ TERMINATION_PROB = 0.4
 COVERAGE = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 
 
-def read_data(file='train'):
+def read_data(file_name=TRAIN_FILE):
     """file argument is from {'train', 'test'}"""
-    file_path = TRAIN_FILE if file == 'train' else TEST_FILE
+    file_path = os.path.join(DATA_DIR, file_name)
     return pd.read_csv(file_path, index_col=False, sep=DELIM)
 
 
