@@ -1,6 +1,9 @@
 # data files
 *.csv
 
+# binary-data files
+.pickle
+
 # Intellij
 .idea/
 *.iml
