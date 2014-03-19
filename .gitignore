@@ -1,6 +1,12 @@
 # data files
 *.csv
 
+# Intellij
+.idea/
+*.iml
+*.iws
+
+#####################
 # everything below is from from https://github.com/github/gitignore
 
 # Byte-compiled / optimized / DLL files
