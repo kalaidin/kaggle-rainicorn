@@ -4,6 +4,8 @@ from random import random
 import pandas as pd
 from sklearn.cross_validation import KFold
 
+CV_GROUPS_COUNT = 3
+
 CUSTOMER_ID = 'customer_ID'
 
 DATA_DIR = 'data'
@@ -15,6 +17,21 @@ DELIM = ','
 TERMINATION_PROB = 0.4
 
 COVERAGE = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+OPTIONS = {
+    'A': (0, 1, 2),
+    'B': (0, 1),
+    'C': (1, 2, 3, 4),
+    'D': (1, 2, 3),
+    'E': (0, 1),
+    'F': (0, 1, 2, 3),
+    'G': (1, 2, 3, 4)
+
+}
+
+
+def j(*paths):
+    """Shortcut for os.path.join"""
+    return os.path.join(*paths)
 
 
 def read_data(file_name=TRAIN_FILE):
@@ -40,7 +57,7 @@ def convert_to_test(data):
 def cv(data):
     assert isinstance(data, pd.core.frame.DataFrame)
     customers = tuple(set(data[CUSTOMER_ID].values))
-    for train_i, test_i in KFold(len(customers), shuffle=True):
+    for train_i, test_i in KFold(len(customers), shuffle=True, n_folds=CV_GROUPS_COUNT):
         train_customers = {customers[i] for i in train_i}
         test_customers = {customers[i] for i in test_i}
         train = data[data[CUSTOMER_ID].isin(train_customers)]
