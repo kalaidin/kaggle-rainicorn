@@ -179,11 +179,11 @@ def slice_and_group(data):
 
 
 def save(file_name, dict_vectorizer, customers, y, x, weights, savemat=True):
-    with open(os.path.join(DATA_DIR, file_name), 'wb') as f:
+    with open(os.path.join(DATA_DIR, file_name + '.pickle'), 'wb') as f:
         pickle.dump(( dict_vectorizer, customers, y, x, weights), f)
     if savemat:
         header = tuple(COVERAGE) + ('weight',) + tuple(dict_vectorizer.get_feature_names())
-        with open(os.path.join(DATA_DIR, file_name), 'w') as f:
+        with open(os.path.join(DATA_DIR, file_name + '.csv'), 'w') as f:
             f.write(','.join(header))
             for c, w, i in zip(y, weights, range(x.shape[0])):
                 row = tuple(c) + (w,) + tuple(x[i, :].todense())
@@ -198,21 +198,21 @@ if __name__ == '__main__':
     train_data = read_data('train.csv')
     train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_data)))
     train_x = dv.fit_transform(train_x)
-    save('train.pickle', dv, train_customers, train_y, train_x, train_weights)
+    save('per-user-train', dv, train_customers, train_y, train_x, train_weights)
 
     test_data = read_data('test.csv')
     test_customers, test_y, test_x, test_weights = zip(*make_features(test_data.groupby('customer_ID')))
     test_x = dv.transform(test_x)
-    save('test.pickle', dv, test_customers, test_y, test_x, test_weights)
+    save('per-user-test', dv, test_customers, test_y, test_x, test_weights)
 
     for cv_i, (train_raw, test_raw) in enumerate(cv(train_data)):
         dv = DictVectorizer()
         train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_raw)))
         train_x = dv.fit_transform(train_x)
-        save('cv%02d_train.pickle' % cv_i, dv, train_customers, train_y, train_x, train_weights)
+        save('cv%02d_per-user-train' % cv_i, dv, train_customers, train_y, train_x, train_weights)
 
         test_customers, test_y, test_x, test_weights = zip(*make_features(slice_and_group(test_raw)))
         test_x = dv.transform(test_x)
-        save('cv%02d_test.pickle' % cv_i, dv, test_customers, test_y, test_x, test_weights)
+        save('cv%02d_per-user-test' % cv_i, dv, test_customers, test_y, test_x, test_weights)
 
 
