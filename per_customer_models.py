@@ -15,7 +15,7 @@ class LastQuoted:
             last_quoted = []
             for c in COVERAGE:
                 for v in OPTIONS[c]:
-                    if X[i, self.features['current_%s:%d' % (c, v)]] == 1:
+                    if X[i, self.features['last_%s:%d' % (c, v)]] == 1:
                         last_quoted.append(v)
                         break
             p.append(last_quoted)

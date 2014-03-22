@@ -33,7 +33,7 @@ def weighted_score(actual, predicted, weight):
 #
 #print('Score', corrects / total)
 
-with open(j(DATA_DIR, 'test.pickle'), 'rb') as f:
+with open(j(DATA_DIR, 'per-user-test.pickle'), 'rb') as f:
     dv, test_customers, test_y, test_x, test_weights = pickle.load(f)
 
 lq = LastQuoted(dv.get_feature_names())
