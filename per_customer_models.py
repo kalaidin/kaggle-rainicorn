@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from scipy.sparse import csr_matrix
 from commons import *
 
 
@@ -11,12 +12,8 @@ class LastQuoted:
 
     def predict(self, X):
         p = []
-        for i in range(X.shape[0]):
-            last_quoted = []
-            for c in COVERAGE:
-                for v in OPTIONS[c]:
-                    if X[i, self.features['last_%s:%d' % (c, v)]] == 1:
-                        last_quoted.append(v)
-                        break
-            p.append(last_quoted)
-        return p
+        for c in COVERAGE:
+            c_indexi = [self.features['last_%s:%d' % (c, v)] for v in OPTIONS[c]]
+            c_pred = tuple(X[:, c_indexi].dot(csr_matrix([OPTIONS[c]]).T).todense())
+            p.append(c_pred)
+        return tuple(zip(*p))

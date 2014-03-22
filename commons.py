@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+from contextlib import contextmanager
 import os
 from random import random
+from time import time
 import pandas as pd
 from sklearn.cross_validation import KFold
 
@@ -71,3 +73,8 @@ def not_implemented_raiser(message=''):
     return f
 
 
+@contextmanager
+def timer(process_name):
+    t = time()
+    yield
+    print('"%s" finished in %0.1f seconds' % (process_name, time() - t))

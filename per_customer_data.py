@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import numpy as np
 from functools import lru_cache
 from itertools import chain
 from sklearn.feature_extraction import DictVectorizer
@@ -180,7 +181,7 @@ def slice_and_group(data):
 
 def save(file_name, dict_vectorizer, customers, y, x, weights, savemat=True):
     with open(os.path.join(DATA_DIR, file_name + '.pickle'), 'wb') as f:
-        pickle.dump(( dict_vectorizer, customers, y, x, weights), f)
+        pickle.dump((dict_vectorizer, customers, np.array(y), x, np.array(weights)), f)
     if savemat:
         header = tuple(COVERAGE) + ('weight',) + tuple(dict_vectorizer.get_feature_names())
         with open(os.path.join(DATA_DIR, file_name + '.csv'), 'w') as f:
