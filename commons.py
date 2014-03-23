@@ -5,6 +5,7 @@ from random import random
 from time import time
 import pandas as pd
 from sklearn.cross_validation import KFold
+import numpy as np
 
 CV_GROUPS_COUNT = 3
 
@@ -78,3 +79,7 @@ def timer(process_name):
     t = time()
     yield
     print('"%s" finished in %0.1f seconds' % (process_name, time() - t))
+
+
+def equal_rows(mat1, mat2):
+    return np.abs(mat1 - mat2).sum(axis=1) == 0
