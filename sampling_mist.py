@@ -6,6 +6,7 @@ Metrics that show that sampling method is good:
 * LastQuoted score -- must equal to benchmark from leaderboard (0.53793)
 * additional metrics (for exploratory purposes): LastQuoted for each coverage
 """
+
 import doctest
 from itertools import chain
 from matplotlib.pyplot import plot, show, figure, legend, hist, title
@@ -16,56 +17,60 @@ import sys
 from commons import *
 
 
-def sample_halt_with_probability(halt_prob, lengths):
+def calculate_clipped_length(length, prob_of_stay):
+    """
+    >>> calculate_clipped_length(10, 1)
+    10
+    >>> calculate_clipped_length(10, 0)
+    2
+    """
+    if length <= 2:
+        return length
+    for new_len in range(2, length):
+        if np.random.uniform() > prob_of_stay:
+            return new_len
+    return length
+
+
+def sample_halt_with_probability(df, halt_prob):
     """Takes two transaction points then halts with a given probability
-    Return new lengths"""
-    m = 1.0
+    Return (new_length:int, last_quoted:[int], actual_cov:[int]) for each customer"""
     p_stay = 1 - halt_prob
-    max_count = np.max(lengths) - 1
-    probs = [p_stay * m ** i for i in range(max_count)]
-    cutted_lengths = []
-    for full_len in lengths:
-        a = [np.random.uniform() < p for kk, p in zip(range(2, full_len - 1), probs)]
-        new_len = full_len - 1 if False not in a else 2 + a.index(False)
-        cutted_lengths.append(new_len)
-    return cutted_lengths
+    for customer_id, group in df.groupby('customer_ID'):
+        n = group.shape[0]
+        new_len = calculate_clipped_length(n - 1, p_stay)
+        last_quoted_coverage = group.iloc[new_len - 1][COVERAGE].values
+        actual_coverage = group.iloc[-1][COVERAGE].values
+        yield new_len, last_quoted_coverage, actual_coverage
 
 
+doctest.testmod()
 
 
 train = read_data('train.csv')
 test = read_data('test.csv')
+print('** data has been read **')
 
-train_length = train.groupby('customer_ID').count().values[:, 0]
-test_length = test.groupby('customer_ID').count().values[:, 0]
+for prob_halt in np.linspace(0.3, 0.4, num=50):
+    print()
+    print('halting probability =', prob_halt)
 
-hist(train_length - 1, bins=10, label='train')
-hist(test_length, bins=10, alpha=0.5, label='test')
-legend()
-title('Customer Transactions Count Distribution')
-show()
+    results = [(nl, np.all(lq == ac), lq == ac) for nl, lq, ac in sample_halt_with_probability(train, prob_halt)]
 
+    train_length, lq, lq_by_coverage = list(zip(*results))
+    train_length = np.array(train_length)
+    test_length = test.groupby('customer_ID').count().values[:, 0]
 
-new_lengths = sample_halt_with_probability(0.5, train_length)
-hist(new_lengths, label='simulated lambda=' + str(p_stay), alpha=0.5)
-hist(np.hstack((test_length,) * 2), alpha=0.5, label='test distribution')
-legend()
-title('Customer Transactions Count Distribution clipped by increasing random')
-show()
+    #hist(train_length, bins=10, label='train', normed=True)
+    #hist(test_length, bins=10, alpha=0.5, label='test', normed=True)
+    #legend()
+    #title('Customer Transactions Count Distribution')
+    #show()
 
-
-
-#d = train[train.shopping_pt != 1].groupby('car_value').aggregate({c: np.mean for c in COVERAGE})
-#plot(d)
-#show()
-
-
-train['hour'] = train['time'].map(lambda x: x.split(':')[0])
-hourly = train[train.shopping_pt == 1].groupby('hour')[COVERAGE].agg(np.mean)
-for c in hourly.columns:
-    plot(hourly[c], label=c)
-legend(loc='auto')
-show()
+    print('LastQuoted:', sum(lq) / len(lq))
+    by_coverage = np.vstack(lq_by_coverage).sum(axis=0) / len(lq)
+    for i, c in enumerate(COVERAGE):
+        print('%s: %.3f' % (c, by_coverage[i]))
 
 
 sys.exit(0)
