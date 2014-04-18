@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""This module splits data into cv-groups, makes each customer a row in a dataset. Features are created
+by functions under @Feature decorator."""
+
+
 import numpy as np
 from functools import lru_cache
 from itertools import chain

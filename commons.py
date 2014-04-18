@@ -83,3 +83,47 @@ def timer(process_name):
 
 def equal_rows(mat1, mat2):
     return np.abs(mat1 - mat2).sum(axis=1) == 0
+
+
+def dict_tostring(d, sep=', '):
+    """
+    >>> dict_tostring({1: 'b', 'k1': 0.123})
+    '1=b, k1=0.123'
+    """
+    return sep.join('%s=%s' % (k, v) for k, v in d.items())
+
+
+#class SeparatedClassifier
+
+
+class ModelFactory:
+    def __init__(self, model_class, *args, **kwd_args):
+        self.model_class = model_class
+        self.args = args
+        self.kwd_args = kwd_args
+
+    def __str__(self):
+        pos_args = ', '.join(str(a) for a in self.args) if self.args else ''
+        kwd_args = dict_tostring(self.kwd_args)
+        delim = ', ' if pos_args and kwd_args else ''
+        return self.model_class.__name__ + '(' + pos_args + delim + kwd_args + ')'
+
+    def create(self):
+        return self.model_class(*self.args, **self.kwd_args)
+
+
+class IndependentMultiDimensionalClassifier:
+    def __init__(self, model):
+        self.model = model
+
+    def fit(self, X, y, *args, **kwargs):
+        p = []
+        for c in COVERAGE:
+            p.append(self.models[c].predict(X))
+
+
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
