@@ -537,20 +537,6 @@ def calculate_clipped_length(length, prob_of_stay):
     return length
 
 
-def enumerate_samples(length_without_last_row, prob_of_stay):
-    """yields new_length and its probability
-    >>> a = list(enumerate_samples(4, 0.66))
-    >>> a
-    [(2, 0.33999999999999997), (3, 0.2244), (4, 0.43560000000000004)]
-    >>> sum(list(zip(*a))[1])
-    1.0"""
-
-    assert length_without_last_row >= 2
-    for new_len in range(2, length_without_last_row ):
-        yield new_len, (1 - prob_of_stay) * prob_of_stay ** (new_len - 2)
-    yield length_without_last_row, prob_of_stay ** (length_without_last_row - 2)
-
-
 def sample_halt_with_probability(df, halt_prob):
     """Takes two transaction points then halts with a given probability
     Return (new_length:int, last_quoted:[int], actual_cov:[int]), weight for each customer

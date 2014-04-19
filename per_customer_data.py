@@ -4,7 +4,6 @@ by functions under @Feature decorator."""
 
 
 import numpy as np
-from functools import lru_cache
 from itertools import chain
 from sklearn.feature_extraction import DictVectorizer
 import pickle
@@ -12,7 +11,6 @@ import pickle
 from commons import *
 
 FAKE_TARGET = [-1] * len(COVERAGE)
-TAKE_PROB = 0.4
 
 transformers = {}
 
@@ -156,7 +154,7 @@ def cost(data):
 def make_features(data_grouped_by_customer, features_list=None):
     if features_list is None:
         features_list = sorted(transformers)
-    print('features list is', features_list)
+    #print('features list is', features_list)
     trs = [f for fn, f in transformers.items() if fn in features_list]
 
     for x in data_grouped_by_customer:
@@ -170,23 +168,12 @@ def make_features(data_grouped_by_customer, features_list=None):
         yield customer, target, row, w
 
 
-@lru_cache(maxsize=None)
-def weight(current, total):
-    """
-    >>> abs(weight(0, 3) + weight(1, 3) + weight(2, 3) - 1) < 1e-10
-    True
-    """
-    s = sum(TAKE_PROB**i for i in range(total))
-    return TAKE_PROB**current / s
-
-
 def slice_and_group(data):
     for customer, g in data.groupby('customer_ID'):
         target = g.iloc[-1][COVERAGE].values  # last row is target
-        n = len(g)  # use all but last row
-        for i in range(1, n):
-            data_subset = g.iloc[0:i]
-            w = weight(i - 1, n)
+        n = len(g)
+        for new_len, w in enumerate_samples(n - 1, 1 - TERMINATION_PROB):
+            data_subset = g.iloc[0:new_len]
             yield customer, data_subset, w, target
 
 
@@ -199,14 +186,11 @@ def save(file_name, dict_vectorizer, customers, y, x, weights, savemat=True):
         with open(os.path.join(DATA_DIR, file_name + '.csv'), 'w') as f:
             f.write(','.join(header) + '\n')
             for c, w, i in zip(y, weights, range(x.shape[0])):
-                row = tuple(c) + (w,) + tuple(x[i, :].array()[0])
+                row = tuple(c) + (w,) + tuple(x[i, :].toarray()[0])
                 f.write(','.join(str(r) for r in row) + '\n')
 
 
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-
+def main():
     dv = DictVectorizer()
     train_data = read_data('train.csv')
     train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_data)))
@@ -218,7 +202,7 @@ if __name__ == '__main__':
     test_x = dv.transform(test_x)
     save('per-customer-test', dv, test_customers, test_y, test_x, test_weights)
 
-    for cv_i, (train_raw, test_raw) in enumerate(cv(train_data)):
+    for cv_i, (train_raw, test_raw) in enumerate(cv(train_data, CV_GROUPS_COUNT)):
         dv = DictVectorizer()
         train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_raw)))
         train_x = dv.fit_transform(train_x)
@@ -229,3 +213,8 @@ if __name__ == '__main__':
         save('cv%02d_per-customer-test' % cv_i, dv, test_customers, test_y, test_x, test_weights)
 
 
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
+    main()

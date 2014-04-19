@@ -13,11 +13,9 @@ CUSTOMER_ID = 'customer_ID'
 
 DATA_DIR = 'data'
 CV_DIR = 'cv'
-TRAIN_FILE = os.path.join(DATA_DIR, 'train.csv')
-TEST_FILE = os.path.join(DATA_DIR, 'test.csv')
 DELIM = ','
 
-TERMINATION_PROB = 0.4
+TERMINATION_PROB = 1 / 3
 
 COVERAGE = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 OPTIONS = {
@@ -37,7 +35,7 @@ def j(*paths):
     return os.path.join(*paths)
 
 
-def read_data(file_name=TRAIN_FILE):
+def read_data(file_name):
     """file argument is from {'train', 'test'}"""
     file_path = os.path.join(DATA_DIR, file_name)
     return pd.read_csv(file_path, index_col=False, sep=DELIM)
@@ -57,14 +55,17 @@ def convert_to_test(data):
     return data.iloc[test_indices]
 
 
-def cv(data):
+def cv(data, cv_groups_count=3):
+    """Converts pandas DataFrame into KFold-cv groups, where groups
+    created wrt customer_ID"""
     assert isinstance(data, pd.core.frame.DataFrame)
     customers = tuple(set(data[CUSTOMER_ID].values))
-    for train_i, test_i in KFold(len(customers), shuffle=True, n_folds=CV_GROUPS_COUNT):
+    for train_i, test_i in KFold(len(customers), shuffle=True, n_folds=cv_groups_count):
         train_customers = {customers[i] for i in train_i}
         test_customers = {customers[i] for i in test_i}
         train = data[data[CUSTOMER_ID].isin(train_customers)]
-        test = convert_to_test(data[data[CUSTOMER_ID].isin(test_customers)])
+        #test = convert_to_test(data[data[CUSTOMER_ID].isin(test_customers)])
+        test = data[data[CUSTOMER_ID].isin(test_customers)]
         yield train, test
 
 
@@ -93,6 +94,20 @@ def dict_tostring(d, sep=', '):
     return sep.join('%s=%s' % (k, v) for k, v in d.items())
 
 
+def enumerate_samples(length_without_last_row, prob_of_stay):
+    """yields new_length and its probability
+    >>> a = list(enumerate_samples(4, 0.66))
+    >>> a
+    [(2, 0.33999999999999997), (3, 0.2244), (4, 0.43560000000000004)]
+    >>> sum(list(zip(*a))[1])
+    1.0"""
+
+    assert length_without_last_row >= 2
+    for new_len in range(2, length_without_last_row):
+        yield new_len, (1 - prob_of_stay) * prob_of_stay ** (new_len - 2)
+    yield length_without_last_row, prob_of_stay ** (length_without_last_row - 2)
+
+
 #class SeparatedClassifier
 
 
@@ -113,15 +128,13 @@ class ModelFactory:
 
 
 class IndependentMultiDimensionalClassifier:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, models):
+        self.models = models
 
     def fit(self, X, y, *args, **kwargs):
         p = []
         for c in COVERAGE:
             p.append(self.models[c].predict(X))
-
-
 
 
 if __name__ == '__main__':
