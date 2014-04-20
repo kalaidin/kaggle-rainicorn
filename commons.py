@@ -83,7 +83,10 @@ def timer(process_name):
 
 
 def equal_rows(mat1, mat2):
-    return np.abs(mat1 - mat2).sum(axis=1) == 0
+    if len(mat1.shape) == 1:
+        return mat1 == mat2
+    else:
+        return np.all(mat1 == mat2, axis=1)
 
 
 def dict_tostring(d, sep=', '):
@@ -108,33 +111,8 @@ def enumerate_samples(length_without_last_row, prob_of_stay):
     yield length_without_last_row, prob_of_stay ** (length_without_last_row - 2)
 
 
-#class SeparatedClassifier
-
-
-class ModelFactory:
-    def __init__(self, model_class, *args, **kwd_args):
-        self.model_class = model_class
-        self.args = args
-        self.kwd_args = kwd_args
-
-    def __str__(self):
-        pos_args = ', '.join(str(a) for a in self.args) if self.args else ''
-        kwd_args = dict_tostring(self.kwd_args)
-        delim = ', ' if pos_args and kwd_args else ''
-        return self.model_class.__name__ + '(' + pos_args + delim + kwd_args + ')'
-
-    def create(self):
-        return self.model_class(*self.args, **self.kwd_args)
-
-
-class IndependentMultiDimensionalClassifier:
-    def __init__(self, models):
-        self.models = models
-
-    def fit(self, X, y, *args, **kwargs):
-        p = []
-        for c in COVERAGE:
-            p.append(self.models[c].predict(X))
+def identity(value):
+    return value
 
 
 if __name__ == '__main__':

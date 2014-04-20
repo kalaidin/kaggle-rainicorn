@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDClassifier
+import sys
 from commons import *
 import numpy as np
+from sklearn.base import BaseEstimator, clone
+from per_customer_eval import weighted_score
 
 
 class LastQuoted:
@@ -59,3 +62,27 @@ class SGD:
 
     def __str__(self):
         return 'SGDClassifier(%s)' % dict_tostring(self.kwd_params)
+
+
+class EachTaskIndependently(BaseEstimator):
+    def __init__(self, estimator, n_jobs=1):
+        self.estimator = estimator
+        self.n_jobs = n_jobs
+
+    def fit(self, X, y, sample_weight=None):
+        task_estimators = []
+        for i in range(y.shape[1]):
+            e = clone(self.estimator)
+            try:
+                e.fit(X, y[:, i], sample_weight=sample_weight)
+            except TypeError:
+                print("Seems like %s doesn't support `sample_weight` argument. Ignoring it" % str(e),
+                      file=sys.stderr)
+                e.fit(X, y[:, i])
+            print('train score %d: %0.3f' % (i, weighted_score(y[:, i], e.predict(X), sample_weight)))
+            task_estimators.append(e)
+        self.task_estimators = task_estimators
+
+    def predict(self, X):
+        return np.vstack([e.predict(X) for e in self.task_estimators]).T
+

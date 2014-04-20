@@ -23,7 +23,7 @@ def weighted_score(actual, predicted, weight):
     return np.sum(corrects * weight) / sum(weight)
 
 
-def eval_per_customer_model(estimator):
+def eval_per_customer_model(estimator, y_transformation=identity):
     corrects = 0.0
     total = 0.0
     for cv in range(CV_GROUPS_COUNT):
@@ -32,18 +32,18 @@ def eval_per_customer_model(estimator):
                 dv, train_customers, train_y, train_x, train_weights = pickle.load(f)
 
             model = clone(estimator)
-            model.fit(train_x, train_y, sample_weight=train_weights)
+            model.fit(train_x, y_transformation(train_y), sample_weight=train_weights)
 
             with open(j(DATA_DIR, 'cv%02d_per-customer-test.pickle' % cv), 'rb') as f:
                 _, test_customers, test_y, test_x, test_weights = pickle.load(f)
 
             test_p = model.predict(test_x)
-            corrects += (equal_rows(test_y, test_p) * test_weights).sum()
+            corrects += (equal_rows(y_transformation(test_y), test_p) * test_weights).sum()
             total += test_weights.sum()
 
             train_p = model.predict(train_x)
-            print('train cv group score:', weighted_score(train_y, train_p, train_weights))
-            print('test cv group score:', weighted_score(test_y, test_p, test_weights))
+            print('train cv group score:', weighted_score(y_transformation(train_y), train_p, train_weights))
+            print('test cv group score:', weighted_score(y_transformation(test_y), test_p, test_weights))
     score = corrects / total
     print('Score for %s is %f' % (str(model), score))
     return score
