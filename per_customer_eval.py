@@ -32,7 +32,11 @@ def eval_per_customer_model(estimator, y_transformation=identity):
                 dv, train_customers, train_y, train_x, train_weights = pickle.load(f)
 
             model = clone(estimator)
-            model.fit(train_x, y_transformation(train_y), sample_weight=train_weights)
+            try:
+                model.fit(train_x, y_transformation(train_y), sample_weight=train_weights)
+            except TypeError:
+                print("%s doesn't support `sample_weight`. Ignoring it." % str(model))
+                model.fit(train_x, y_transformation(train_y))
 
             with open(j(DATA_DIR, 'cv%02d_per-customer-test.pickle' % cv), 'rb') as f:
                 _, test_customers, test_y, test_x, test_weights = pickle.load(f)
