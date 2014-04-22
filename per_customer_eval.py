@@ -23,12 +23,12 @@ def weighted_score(actual, predicted, weight):
     return np.sum(corrects * weight) / sum(weight)
 
 
-def eval_per_customer_model(estimator, y_transformation=identity):
+def eval_per_customer_model(dataset_name, estimator, y_transformation=identity):
     corrects = 0.0
     total = 0.0
     for cv in range(CV_GROUPS_COUNT):
         with timer('cv group %d' % cv):
-            with open(j(DATA_DIR, 'cv%02d_per-customer-train.pickle' % cv), 'rb') as f:
+            with open(j(DATA_DIR, dataset_name, 'cv%02d_per-customer-train.pickle' % cv), 'rb') as f:
                 dv, train_customers, train_y, train_x, train_weights = pickle.load(f)
 
             model = clone(estimator)
@@ -38,7 +38,7 @@ def eval_per_customer_model(estimator, y_transformation=identity):
                 print("%s doesn't support `sample_weight`. Ignoring it." % str(model))
                 model.fit(train_x, y_transformation(train_y))
 
-            with open(j(DATA_DIR, 'cv%02d_per-customer-test.pickle' % cv), 'rb') as f:
+            with open(j(DATA_DIR, dataset_name, 'cv%02d_per-customer-test.pickle' % cv), 'rb') as f:
                 _, test_customers, test_y, test_x, test_weights = pickle.load(f)
 
             test_p = model.predict(test_x)
@@ -53,14 +53,14 @@ def eval_per_customer_model(estimator, y_transformation=identity):
     return score
 
 
-def make_per_customer_submission(model_class, *params, **kwd_params):
-    with open(j(DATA_DIR, 'per-customer-train.pickle'), 'rb') as f:
+def make_per_customer_submission(dataset_name, model_class, *params, **kwd_params):
+    with open(j(DATA_DIR, dataset_name, 'per-customer-train.pickle'), 'rb') as f:
         dv, train_customers, train_y, train_x, train_weights = pickle.load(f)
 
     model = model_class(*params, feature_names=dv.get_feature_names(), **kwd_params)
     model.fit(train_x, train_y, train_weights)
 
-    with open(j(DATA_DIR, 'per-customer-test.pickle'), 'rb') as f:
+    with open(j(DATA_DIR, dataset_name, 'per-customer-test.pickle'), 'rb') as f:
         _, test_customers, test_y, test_x, test_weights = pickle.load(f)
 
     with open(j('submissions', '%s.csv' % datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")), 'w') as f:

@@ -8,7 +8,7 @@ from sklearn.base import BaseEstimator, clone
 from per_customer_eval import weighted_score
 
 
-class LastQuoted:
+class LastQuoted(BaseEstimator):
     def __init__(self, feature_names=None):
         assert feature_names is not None, 'feature_names must be specified'
         self.features = {fn: i for i, fn in enumerate(feature_names)}
