@@ -11,7 +11,7 @@ from per_customer_eval import weighted_score
 class LastQuoted(BaseEstimator):
     def __init__(self, feature_names=None):
         assert feature_names is not None, 'feature_names must be specified'
-        self.features = {fn: i for i, fn in enumerate(feature_names)}
+        self.feature_names = feature_names
 
     def fit(self, X, y, sample_weight=None):
         pass
@@ -19,9 +19,11 @@ class LastQuoted(BaseEstimator):
     def predict(self, X):
         assert (isinstance(X, csr_matrix))
 
+        features = {fn: i for i, fn in enumerate(self.feature_names)}
+
         p = []
         for c in COVERAGE:
-            c_indexi = [self.features['last_%s:%d' % (c, v)] for v in OPTIONS[c]]
+            c_indexi = [features['last_%s:%d' % (c, v)] for v in OPTIONS[c]]
             c_pred = np.array(X[:, c_indexi].dot(csr_matrix([OPTIONS[c]]).T).todense(), dtype='int')
             p.append(c_pred)
         return np.hstack(p)

@@ -53,6 +53,12 @@ def eval_per_customer_model(dataset_name, estimator, y_transformation=identity):
     return score
 
 
+def get_feature_names(dataset_name):
+    with open(j(DATA_DIR, dataset_name, 'per-customer-train.pickle'), 'rb') as f:
+        dv, train_customers, train_y, train_x, train_weights = pickle.load(f)
+    return dv.get_feature_names()
+
+
 def make_per_customer_submission(dataset_name, model_class, *params, **kwd_params):
     with open(j(DATA_DIR, dataset_name, 'per-customer-train.pickle'), 'rb') as f:
         dv, train_customers, train_y, train_x, train_weights = pickle.load(f)

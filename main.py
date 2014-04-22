@@ -8,7 +8,10 @@ from per_customer_eval import *
 from per_customer_models import *
 
 eval = partial(eval_per_customer_model, 'per-customer-cat')
+features = partial(get_feature_names, 'per-customer-cat')
 
+# LastQuoted
+# eval(LastQuoted(feature_names=features()))
 #A: 0.875
 #B: 0.885
 #C: 0.868
@@ -35,7 +38,8 @@ eval = partial(eval_per_customer_model, 'per-customer-cat')
 #eval_per_customer_model(EachTaskIndependently(SVC(kernel='linear')))
 #eval_per_customer_model(EachTaskIndependently(LinearSVC(C=0.01)))
 
-eval(EachTaskIndependently(SGDClassifier(n_iter=70, shuffle=True)))
+
+#eval(EachTaskIndependently(SGDClassifier(n_iter=70, shuffle=True)))
 
 
 #OneVsRestClassifier()
