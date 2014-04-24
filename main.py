@@ -12,6 +12,7 @@ features = partial(get_feature_names, 'per-customer-cat')
 
 # LastQuoted
 # eval(LastQuoted(feature_names=features()))
+# Score for LastQuoted() is 0.537753
 #A: 0.875
 #B: 0.885
 #C: 0.868
