@@ -23,7 +23,7 @@ def weighted_score(actual, predicted, weight):
     return np.sum(corrects * weight) / sum(weight)
 
 
-def eval_per_customer_model(dataset_name, estimator, y_transformation=identity):
+def eval_per_customer_model(dataset_name, estimator, x_transformation=identity, y_transformation=identity):
     corrects = 0.0
     total = 0.0
     for cv in range(CV_GROUPS_COUNT):
@@ -33,19 +33,19 @@ def eval_per_customer_model(dataset_name, estimator, y_transformation=identity):
 
             model = clone(estimator)
             try:
-                model.fit(train_x, y_transformation(train_y), sample_weight=train_weights)
+                model.fit(x_transformation(train_x), y_transformation(train_y), sample_weight=train_weights)
             except TypeError:
                 print("%s doesn't support `sample_weight`. Ignoring it." % str(model))
-                model.fit(train_x, y_transformation(train_y))
+                model.fit(x_transformation(train_x), y_transformation(train_y))
 
             with open(j(DATA_DIR, dataset_name, 'cv%02d_per-customer-test.pickle' % cv), 'rb') as f:
                 _, test_customers, test_y, test_x, test_weights = pickle.load(f)
 
-            test_p = model.predict(test_x)
+            test_p = model.predict(x_transformation(test_x))
             corrects += (equal_rows(y_transformation(test_y), test_p) * test_weights).sum()
             total += test_weights.sum()
 
-            train_p = model.predict(train_x)
+            train_p = model.predict(x_transformation(train_x))
             print('train cv group score:', weighted_score(y_transformation(train_y), train_p, train_weights))
             print('test cv group score:', weighted_score(y_transformation(test_y), test_p, test_weights))
     score = corrects / total
