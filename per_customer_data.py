@@ -253,13 +253,13 @@ def create_dataset(dataset_name, features):
           file=sys.stderr)
 
     dv = DictVectorizer()
-    train_data = read_data('train.csv')
+    train_data = read_data('train-head.csv')
     train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_data), features))
     train_x = dv.fit_transform(train_x)
     os.mkdir(j(DATA_DIR, dataset_name))
     save('per-customer-train', dataset_name, dv, train_customers, train_y, train_x, train_weights)
 
-    test_data = read_data('test.csv')
+    test_data = read_data('test-head.csv')
     test_customers, test_y, test_x, test_weights = zip(*make_features(test_data.groupby('customer_ID'), features))
     test_x = dv.transform(test_x)
     save('per-customer-test', dataset_name, dv, test_customers, test_y, test_x, test_weights)
@@ -279,10 +279,8 @@ def main():
     per_customer_cat2_features = ['age_youngest',
                                   'duration_previous',
                                   'age_oldest',
-                                  'car_value',
                                   'married_couple',
                                   'group_size',
-                                  'risk_factor',
                                   'homeowner',
                                   'cost',
                                   'C_previous',
@@ -304,8 +302,10 @@ def main():
                                   'day_first_visit',
                                   'day_last_visit',
                                   'state',
-                                  'n_car_age']
-    create_dataset('per_customer_cat2_features', per_customer_cat2_features)
+                                  'n_car_age',
+                                  'car_value',
+                                  'risk_factor']
+    create_dataset('per-customer-cat2   ', per_customer_cat2_features)
 
     per_customer_cat_features = ['age_youngest',
                                  'duration_previous',
@@ -352,6 +352,7 @@ def main():
 
 if __name__ == '__main__':
     import doctest
-    doctest.testmod()
+    if doctest.testmod().failed > 0:
+        print('tests failed!', file=sys.stderr)
 
     main()
