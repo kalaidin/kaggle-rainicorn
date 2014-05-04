@@ -6,7 +6,7 @@ from sklearn import clone
 from commons import *
 
 
-def weighted_score(actual, predicted, weight):
+def weighted_score(actual, predicted, sample_weight=None):
     """
     >>> import numpy as np
     >>> a = np.array([[1, 1], [1, 2]])
@@ -17,10 +17,12 @@ def weighted_score(actual, predicted, weight):
     """
     assert isinstance(actual, np.ndarray)
     assert isinstance(predicted, np.ndarray)
-    assert isinstance(weight, np.ndarray)
+    assert (sample_weight is None) or isinstance(sample_weight, np.ndarray)
+    if sample_weight is None:
+        sample_weight = np.ones(actual.shape)
 
     corrects = actual == predicted if len(actual.shape) == 1 else np.all(actual == predicted, axis=1)
-    return np.sum(corrects * weight) / sum(weight)
+    return np.sum(corrects * sample_weight) / sum(sample_weight)
 
 
 def eval_per_customer_model(dataset_name, estimator, x_transformation=identity, y_transformation=identity):

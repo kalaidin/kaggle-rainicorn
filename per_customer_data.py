@@ -14,6 +14,94 @@ import sys
 
 from commons import *
 
+per_customer_1_features = ['age_oldest',
+                           'age_youngest',
+                           'age_difference',
+                           'age_prop'
+                           'age_youngest_ranged',
+                           'age_oldest_ranged',
+                           'duration_previous',
+                           'duration_previous_safe',
+                           'duration_previous_ranged',
+                           'married_couple',
+                           'group_size',
+                           'homeowner',
+                           'C_previous',
+                           'last_A',
+                           'last_B',
+                           'last_C',
+                           'last_D',
+                           'last_E',
+                           'last_F',
+                           'last_G',
+                           'cont_C_previous',
+                           'cont_last_A',
+                           'cont_last_B',
+                           'cont_last_C',
+                           'cont_last_D',
+                           'cont_last_E',
+                           'cont_last_F',
+                           'cont_last_G',
+                           'viewed_A',
+                           'viewed_B',
+                           'viewed_C',
+                           'viewed_D',
+                           'viewed_E',
+                           'viewed_F',
+                           'viewed_G',
+                           'order',
+                           'day_first_visit',
+                           'day_last_visit',
+                           'state',
+                           'car_age',
+                           'car_age_norm',
+                           'car_value',
+                           'risk_factor',
+                           'cost',
+                           'cost_norm']
+
+
+per_customer_cat_features = ['age_youngest',
+                             'duration_previous',
+                             'age_oldest',
+                             'car_value',
+                             'married_couple',
+                             'car_age',
+                             'group_size',
+                             'risk_factor',
+                             'homeowner',
+                             'cost',
+                             'C_previous',
+                             'last_A',
+                             'last_B',
+                             'last_C',
+                             'last_D',
+                             'last_E',
+                             'last_F',
+                             'last_G',
+                             'order']
+
+
+per_customer_cont_features = ['age_youngest',
+                              'duration_previous',
+                              'age_oldest',
+                              'car_value',
+                              'married_couple',
+                              'car_age',
+                              'group_size',
+                              'risk_factor',
+                              'homeowner',
+                              'cost',
+                              'cont_C_previous',
+                              'cont_last_A',
+                              'cont_last_B',
+                              'cont_last_C',
+                              'cont_last_D',
+                              'cont_last_E',
+                              'cont_last_F',
+                              'cont_last_G',
+                              'order']
+
 FAKE_TARGET = [-1] * len(COVERAGE)
 
 transformers = {}
@@ -44,6 +132,15 @@ def normalize(mean=0, std_dev=1):
     def dec(func):
         def wrapped(*args, **kwargs):
             return (func(*args, **kwargs) - mean) / std_dev
+        return wrapped
+    return dec
+
+
+def ranged(thresholds, labels=None):
+    def dec(func):
+        def wrapped(*args, **kwargs):
+            v = func(*args, **kwargs)
+            return ranged_value(v, thresholds, labels)
         return wrapped
     return dec
 
@@ -132,7 +229,7 @@ def car_age(data):
 @feature
 @continuous
 @normalize(2, 0.72)
-def n_car_age(data):
+def car_age_norm(data):
     return np.log(_get_column_last_value(data, 'car_age') + 1)
 
 
@@ -162,6 +259,32 @@ def age_youngest(data):
 
 @feature
 @continuous
+def age_difference(data):
+    return _get_column_last_value(data, 'age_oldest') - _get_column_last_value(data, 'age_youngest')
+
+
+@feature
+@continuous
+def age_prop(data):
+    return _get_column_last_value(data, 'age_youngest') / _get_column_last_value(data, 'age_oldest')
+
+
+@feature
+@categorical
+@ranged([38, 73], ['young', 'middle', 'old'])
+def age_oldest_cat(data):
+    return _get_column_last_value(data, 'age_oldest')
+
+
+@feature
+@categorical
+@ranged([38, 73], ['young', 'middle', 'old'])
+def age_youngest_cat(data):
+    return _get_column_last_value(data, 'age_youngest')
+
+
+@feature
+@continuous
 def married_couple(data):
     return _get_column_last_value(data, 'married_couple')
 
@@ -186,14 +309,30 @@ def duration_previous(data):
 
 @feature
 @continuous
-def duration_previous(data):
+def duration_previous_safe(data):
     v = _get_column_last_value(data, 'duration_previous')
     return v if not np.isnan(v) else 0
 
 
 @feature
+@categorical
+def duration_previous_ranged(data):
+    v = _get_column_last_value(data, 'duration_previous')
+    if np.isnan(v):
+        return 'NaN'
+    return ranged_value(v, [1, 5, 11, 15], labels=['0', '1-4', '5-10', '11-14', '15'])
+
+
+@feature
 @continuous
 def cost(data):
+    return _get_column_last_value(data, 'cost')
+
+
+@feature
+@continuous
+@normalize(634, 43)
+def cost_norm(data):
     return _get_column_last_value(data, 'cost')
 
 
@@ -253,13 +392,13 @@ def create_dataset(dataset_name, features):
           file=sys.stderr)
 
     dv = DictVectorizer()
-    train_data = read_data('train-head.csv')
+    train_data = read_data('train.csv')
     train_customers, train_y, train_x, train_weights = zip(*make_features(slice_and_group(train_data), features))
     train_x = dv.fit_transform(train_x)
     os.mkdir(j(DATA_DIR, dataset_name))
     save('per-customer-train', dataset_name, dv, train_customers, train_y, train_x, train_weights)
 
-    test_data = read_data('test-head.csv')
+    test_data = read_data('test.csv')
     test_customers, test_y, test_x, test_weights = zip(*make_features(test_data.groupby('customer_ID'), features))
     test_x = dv.transform(test_x)
     save('per-customer-test', dataset_name, dv, test_customers, test_y, test_x, test_weights)
@@ -276,78 +415,9 @@ def create_dataset(dataset_name, features):
 
 
 def main():
-    per_customer_cat2_features = ['age_youngest',
-                                  'duration_previous',
-                                  'age_oldest',
-                                  'married_couple',
-                                  'group_size',
-                                  'homeowner',
-                                  'cost',
-                                  'C_previous',
-                                  'last_A',
-                                  'last_B',
-                                  'last_C',
-                                  'last_D',
-                                  'last_E',
-                                  'last_F',
-                                  'last_G',
-                                  'viewed_A',
-                                  'viewed_B',
-                                  'viewed_C',
-                                  'viewed_D',
-                                  'viewed_E',
-                                  'viewed_F',
-                                  'viewed_G',
-                                  'order',
-                                  'day_first_visit',
-                                  'day_last_visit',
-                                  'state',
-                                  'n_car_age',
-                                  'car_value',
-                                  'risk_factor']
-    create_dataset('per-customer-cat2   ', per_customer_cat2_features)
-
-    per_customer_cat_features = ['age_youngest',
-                                 'duration_previous',
-                                 'age_oldest',
-                                 'car_value',
-                                 'married_couple',
-                                 'car_age',
-                                 'group_size',
-                                 'risk_factor',
-                                 'homeowner',
-                                 'cost',
-                                 'C_previous',
-                                 'last_A',
-                                 'last_B',
-                                 'last_C',
-                                 'last_D',
-                                 'last_E',
-                                 'last_F',
-                                 'last_G',
-                                 'order']
-    create_dataset('per-customer-cat', per_customer_cat_features)
-
-    per_customer_cont_features = ['age_youngest',
-                                  'duration_previous',
-                                  'age_oldest',
-                                  'car_value',
-                                  'married_couple',
-                                  'car_age',
-                                  'group_size',
-                                  'risk_factor',
-                                  'homeowner',
-                                  'cost',
-                                  'cont_C_previous',
-                                  'cont_last_A',
-                                  'cont_last_B',
-                                  'cont_last_C',
-                                  'cont_last_D',
-                                  'cont_last_E',
-                                  'cont_last_F',
-                                  'cont_last_G',
-                                  'order']
-    create_dataset('per-customer-cont', per_customer_cont_features)
+    create_dataset('per-customer-1', per_customer_1_features)
+    #create_dataset('per-customer-cat', per_customer_cat_features)
+    #create_dataset('per-customer-cont', per_customer_cont_features)
 
 
 if __name__ == '__main__':

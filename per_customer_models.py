@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from scipy.optimize import fmin
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDClassifier
 import sys
@@ -32,40 +33,6 @@ class LastQuoted(BaseEstimator):
         return 'LastQuoted()'
 
 
-class SGD:
-    def __init__(self, *params, feature_names=None, **kwd_params):
-        assert feature_names is not None, 'feature_names must be specified'
-        assert not params, "SGD doesn't take positional arguments. Use kwd args."
-
-        self.features = {fn: i for i, fn in enumerate(feature_names)}
-        self.models = {}
-        self.params = params
-        self.kwd_params = kwd_params
-
-    def fit(self, X, y, sample_weight=None):
-        assert isinstance(X, csr_matrix)
-        assert isinstance(y, np.ndarray)
-        if sample_weight is not None:
-            assert isinstance(sample_weight, np.ndarray)
-
-        for i, c in enumerate(COVERAGE):
-            m = SGDClassifier(loss='log', **self.kwd_params)
-            m.fit(X, y[:, i], sample_weight=sample_weight)
-            self.models[c] = m
-
-    def predict(self, X):
-        assert isinstance(X, csr_matrix)
-
-        p = []
-        for c in COVERAGE:
-            p.append(self.models[c].predict(X))
-
-        return np.vstack(p).T
-
-    def __str__(self):
-        return 'SGDClassifier(%s)' % dict_tostring(self.kwd_params)
-
-
 class EachTaskIndependently(BaseEstimator):
     def __init__(self, estimator, n_jobs=1):
         self.estimator = estimator
@@ -88,3 +55,62 @@ class EachTaskIndependently(BaseEstimator):
     def predict(self, X):
         return np.vstack([e.predict(X) for e in self.task_estimators]).T
 
+
+def _to_ordinal(continuous_values, thresholds, labels):
+    """ Convert continuous value into ordinal given its thresholds and labels
+    >>> _to_ordinal(np.array([-1, 0, 0.6, 2]), np.array([0.5, 1]), np.array([0, 1, 2]))
+    array([0, 0, 1, 2])"""
+    assert thresholds.shape[0] + 1 == labels.shape[0]
+
+    ordinal_values = np.zeros(continuous_values.shape, dtype='int') + labels[0]
+    ordinal_values[continuous_values >= thresholds[-1]] = labels[-1]
+
+    for i in range(thresholds.shape[0] - 1):
+        ordinal_values[np.logical_and(continuous_values >= thresholds[i],
+                                      continuous_values < thresholds[i + 1])] = labels[i + 1]
+    return ordinal_values
+
+
+def _best_threshold(actual_y, predicted_y, labels, sample_weight=None):
+    """
+    >>> c = lambda *x: np.array(x)
+    >>> _best_threshold(c(0, 0, 1, 1), c(0.4, -1, 0.4001, 0.7), c(0, 1), None)
+    array([0.4])
+    """
+    initial_thresholds = (labels[1:] + labels[:-1]) / 2
+    f = lambda optim_thresh: weighted_score(actual_y, _to_ordinal(predicted_y, optim_thresh, labels),
+                                            sample_weight)
+    return fmin(f, initial_thresholds)
+
+c = lambda *x: np.array(x)
+_best_threshold(c(0, 0, 1, 1), c(0.4, -1, 0.4001, 0.7), c(0, 1), None)
+
+
+class AsOrdinal(BaseEstimator):
+    def __init__(self, estimator):
+        self.estimator = estimator
+
+    def fit(self, X, y, sample_weight=None):
+        assert isinstance(y, np.ndarray)
+        assert len(y.shape) == 1, "only one-dimensional target is supported"
+
+        try:
+            self.estimator.fit(X, y, sample_weight=sample_weight)
+        except TypeError:
+            print("%s doesn't support `sample_weight`. Ignoring it.")
+            self.estimator.fit(X, y)
+
+        y_hat = self.estimator.predict(X)
+
+        self.labels = np.unique(y)
+        self.labels.sort()
+
+        self.thresholds = _best_threshold(y, y_hat, self.labels, sample_weight=sample_weight)
+
+    def predict(self, X):
+        _to_ordinal(self.estimator.predict(X), self.thresholds, self.labels)
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

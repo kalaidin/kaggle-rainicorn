@@ -31,14 +31,6 @@ features = partial(get_feature_names, 'per-customer-cat')
 #A: 0.72 (18 hours)
 
 
-#eval_per_customer_model(LastQuoted)
-#eval_per_customer_model(EachTaskIndependently(SGDClassifier(n_iter=30)))
-#eval_per_customer_model(SVC(kernel='linear', C=0.001, max_iter=60), y_transformation=lambda y: y[:, 0])
-#eval_per_customer_model(GradientBoostingClassifier(n_estimators=10), y_transformation=lambda y: y[:, 0])
-
-#eval_per_customer_model(EachTaskIndependently(SVC(kernel='linear')))
-#eval_per_customer_model(EachTaskIndependently(LinearSVC(C=0.01)))
-
 
 #eval(EachTaskIndependently(SGDClassifier(n_iter=70, shuffle=True)))
 

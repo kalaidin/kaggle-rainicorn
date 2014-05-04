@@ -91,9 +91,8 @@ def equal_rows(mat1, mat2):
 
 def dict_tostring(d, sep=', '):
     """
-    >>> dict_tostring({1: 'b', 'k1': 0.123})
-    '1=b, k1=0.123'
-    """
+    >>> dict_tostring({1: 'b', 'k1': 0.123}) in ('1=b, k1=0.123', 'k1=0.123, 1=b')
+    True"""
     return sep.join('%s=%s' % (k, v) for k, v in d.items())
 
 
@@ -113,6 +112,24 @@ def enumerate_samples(length_without_last_row, prob_of_stay):
 
 def identity(value):
     return value
+
+
+def ranged_value(value, thresholds, labels):
+    """
+    >>> ranged_value(3, [1, 2], ['a', 'b', 'c'])
+    'c'
+    >>> ranged_value(0.9, [1, 2], ['a', 'b', 'c'])
+    'a'
+    >>> ranged_value(1, [1, 2], ['a', 'b', 'c'])
+    'b'"""
+    assert len(thresholds) == len(labels) - 1
+    assert len(thresholds) > 0
+
+    for thr, label in zip(thresholds, labels):
+        if value < thr:
+            return label
+
+    return labels[-1]
 
 
 if __name__ == '__main__':
