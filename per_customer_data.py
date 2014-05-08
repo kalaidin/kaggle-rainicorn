@@ -416,8 +416,8 @@ def create_dataset(dataset_name, features):
 
 def main():
     create_dataset('per-customer-1', per_customer_1_features)
-    #create_dataset('per-customer-cat', per_customer_cat_features)
-    #create_dataset('per-customer-cont', per_customer_cont_features)
+    create_dataset('per-customer-cat', per_customer_cat_features)
+    create_dataset('per-customer-cont', per_customer_cont_features)
 
 
 if __name__ == '__main__':

@@ -7,11 +7,11 @@ from functools import partial
 from per_customer_eval import *
 from per_customer_models import *
 
-eval = partial(eval_per_customer_model, 'per-customer-cat')
-features = partial(get_feature_names, 'per-customer-cat')
+eval = partial(eval_per_customer_model, 'per-customer-cat', exclude_variables=[])
+#features = partial(get_feature_names, 'per-customer-cat')
 
-# LastQuoted
-# eval(LastQuoted(feature_names=features()))
+#LastQuoted
+#eval(LastQuoted(feature_names=features()))
 # Score for LastQuoted() is 0.537753
 #A: 0.875
 #B: 0.885
@@ -30,9 +30,16 @@ features = partial(get_feature_names, 'per-customer-cat')
 #eval_per_customer_model(SVC(kernel='rbf', C=0.00001), y_transformation=lambda y: y[:, 0])
 #A: 0.72 (18 hours)
 
-
-
-#eval(EachTaskIndependently(SGDClassifier(n_iter=70, shuffle=True)))
+# same performance as LastQuoted
+min_list = ['C_previous',
+            'last_A',
+            'last_B',
+            'last_C',
+            'last_D',
+            'last_E',
+            'last_F',
+            'last_G']
+eval(EachTaskIndependently(SGDClassifier(n_iter=5, shuffle=True)), include_variables=min_list)
 
 
 #OneVsRestClassifier()
