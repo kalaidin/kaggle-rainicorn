@@ -152,17 +152,8 @@ estimators = {'categorical': SGDClassifier(n_iter=50),
 #     y_transformation=lambda y: y[:, 2], include_variables=l2)
 
 
-for a in [0.0004, 0.0001, 0.00003, 0.00001]:
-    eval(EachTaskIndependently(SGDClassifier(shuffle=True, n_iter=100, n_jobs=-1, alpha=a)),
+eval(EachTaskIndependently(SGDClassifier(shuffle=True, n_iter=90, n_jobs=-1, alpha=0.0004)),
          include_variables=l2, interacting_variables=create_interactions('last_X'))
-    print('alpha=%f' % a)
-    print('=' * 60)
-
-    for n in [100, 200, 300]:
-        eval(EachTaskIndependently(AsOrdinal(SGDClassifier(shuffle=True, loss='log', n_iter=n, n_jobs=-1, alpha=a))),
-             include_variables=l2, interacting_variables=create_interactions('last_X'))
-        print('alpha=%f, n_iter=%d' % (a, n))
-        print('=' * 60)
 
 #eval(SGDClassifier(shuffle=True, n_iter=50, n_jobs=-1, alpha=0.0004),
 #     y_transformation=lambda y: y[:, 2], include_variables=l2)

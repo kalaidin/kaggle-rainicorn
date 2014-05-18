@@ -2,7 +2,7 @@
 import pickle
 import datetime
 import numpy as np
-from scipy.sparse import hstack
+from scipy.sparse import hstack, csc_matrix
 from sklearn import clone
 from commons import *
 
@@ -43,13 +43,14 @@ def get_feature_indexi(all_features, include_list, strict_eq=False):
 
 
 def multiply_row_wise(mat):
-    return np.expm1(mat.log1p().sum(axis=1))
+    return csc_matrix(np.expm1(mat.log1p().sum(axis=1)))
 
 
 def creating_interacting_matrix(matrix, column_names, include_variables, interacting_variables):
     first_order_indexi = np.array(get_feature_indexi(column_names, include_variables), dtype='int')
     multiorder_indexi = [np.array(get_feature_indexi(column_names, interaction, strict_eq=True), dtype='int') for interaction in interacting_variables]
-    return hstack([matrix[:, first_order_indexi]] + [multiply_row_wise(matrix[:, ii]) for ii in multiorder_indexi])
+    csc = matrix.tocsc()
+    return hstack([csc[:, first_order_indexi]] + [multiply_row_wise(csc[:, ii]) for ii in multiorder_indexi]).tocsr()
 
 
 def eval_per_customer_model(dataset_name, estimator, x_transformation=identity, y_transformation=identity,
