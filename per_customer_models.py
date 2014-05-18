@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-from scipy.optimize import fmin
+from itertools import chain, combinations, product
+from numpy.core.umath import logical_or
 from scipy.sparse import csr_matrix
-from sklearn.linear_model import SGDClassifier
 import sys
 from commons import *
 import numpy as np
@@ -71,44 +71,111 @@ def _to_ordinal(continuous_values, thresholds, labels):
     return ordinal_values
 
 
-def _best_threshold(actual_y, predicted_y, labels, sample_weight=None):
-    """
-    >>> c = lambda *x: np.array(x)
-    >>> _best_threshold(c(0, 0, 1, 1), c(0.4, -1, 0.4001, 0.7), c(0, 1), None)
-    array([0.4])
-    """
-    initial_thresholds = (labels[1:] + labels[:-1]) / 2
-    f = lambda optim_thresh: weighted_score(actual_y, _to_ordinal(predicted_y, optim_thresh, labels),
-                                            sample_weight)
-    return fmin(f, initial_thresholds)
+#def _best_threshold(actual_y, predicted_y, labels, sample_weight=None):
+#    """
+#    >>> c = lambda *x: np.array(x)
+#    >>> _best_threshold(c(0, 0, 1, 1), c(0.4, -1, 0.4001, 0.7), c(0, 1), None)
+#    array([0.4])
+#    """
+#    initial_thresholds = (labels[1:] + labels[:-1]) / 2
+#    f = lambda optim_thresh: weighted_score(actual_y, _to_ordinal(predicted_y, optim_thresh, labels),
+#                                            sample_weight)
+#    return fmin(f, initial_thresholds, disp=0)
 
-c = lambda *x: np.array(x)
-_best_threshold(c(0, 0, 1, 1), c(0.4, -1, 0.4001, 0.7), c(0, 1), None)
+
+#class AsOrdinal2(BaseEstimator):
+#    """estimator must be a regressor not a classifier"""
+#    def __init__(self, estimator):
+#        self.estimator = estimator
+#
+#    def fit(self, X, y, sample_weight=None):
+#        assert isinstance(y, np.ndarray)
+#        assert len(y.shape) == 1, "only one-dimensional target is supported"
+#
+#        try:
+#            self.estimator.fit(X, y, sample_weight=sample_weight)
+#        except TypeError:
+#            print("%s doesn't support `sample_weight`. Ignoring it.")
+#            self.estimator.fit(X, y)
+#
+#        y_hat = self.estimator.predict(X)
+#
+#        self.labels = np.unique(y)
+#        self.labels.sort()
+#
+#        self.thresholds = _best_threshold(y, y_hat, self.labels, sample_weight=sample_weight)
+#
+#        print('thresholds', self.thresholds)
+#
+#    def predict(self, X):
+#        return _to_ordinal(self.estimator.predict(X), self.thresholds, self.labels)
 
 
 class AsOrdinal(BaseEstimator):
-    def __init__(self, estimator):
+    """estimator must be a classifier with implemented predict_proba() method"""
+    def __init__(self, estimator, use_all_data=True):
         self.estimator = estimator
+        self.estimators = {}
+        self.use_all_data = use_all_data
+
+    def iterate_labels(self):
+        yield from zip(self.labels[:-1], self.labels[1:])
 
     def fit(self, X, y, sample_weight=None):
         assert isinstance(y, np.ndarray)
         assert len(y.shape) == 1, "only one-dimensional target is supported"
 
-        try:
-            self.estimator.fit(X, y, sample_weight=sample_weight)
-        except TypeError:
-            print("%s doesn't support `sample_weight`. Ignoring it.")
-            self.estimator.fit(X, y)
-
-        y_hat = self.estimator.predict(X)
-
         self.labels = np.unique(y)
         self.labels.sort()
 
-        self.thresholds = _best_threshold(y, y_hat, self.labels, sample_weight=sample_weight)
+        for l0, l1 in self.iterate_labels():
+            if self.use_all_data:
+                l0_vs_v1 = np.array(y >= l1, dtype='int')
+                new_x = X
+            else:
+                l0_vs_v1 = np.zeros(y.shape) - 1.0
+                l0_vs_v1[y == l0] = 0
+                l0_vs_v1[y == l1] = 1
+                ii = logical_or(y == l0, y == l1)
+                new_x = X[ii]
+
+
+            e = clone(self.estimator)
+            try:
+                e.fit(new_x, l0_vs_v1, sample_weight=sample_weight)
+            except TypeError:
+                print("%s doesn't support `sample_weight`. Ignoring it.")
+                e.fit(new_x, l0_vs_v1)
+            self.estimators[(l0, l1)] = e
+
+    def predict_proba(self, X):
+        comparative_probs = np.zeros((X.shape[0], len(self.labels) - 1), dtype='float')
+        for i, (l0, l1) in enumerate(self.iterate_labels()):
+            comparative_probs[:, i] = self.estimators[(l0, l1)].predict_proba(X)[:, 1]
+
+        p = np.zeros((X.shape[0], len(self.labels)), dtype='float')
+        p[:, 0] = 1.0
+        for i, (l0, l1) in enumerate(self.iterate_labels()):
+            proba_l1 = self.estimators[(l0, l1)].predict_proba(X)[:, 1]
+            proba_l0 = 1.0 - proba_l1
+            k = proba_l1 / proba_l0
+            p[:, i + 1] = p[:, i] * k
+
+        return p / p.sum(axis=1)[:, np.newaxis]  # normalise row-wise
 
     def predict(self, X):
-        _to_ordinal(self.estimator.predict(X), self.thresholds, self.labels)
+        label_indexi = self.predict_proba(X).argmax(axis=1)
+        return np.array(self.labels)[label_indexi]
+
+
+def create_interactions(coverage_name='last_X', order=2, from_coverages=COVERAGE):
+    """
+    >>> create_interactions(coverage_name='_X', from_coverages=['A', 'B', 'C'])
+    [('_A:0', '_B:0'), ('_A:0', '_B:1'), ('_A:1', '_B:0'), ('_A:1', '_B:1'), ('_A:2', '_B:0'), ('_A:2', '_B:1'), ('_A:0', '_C:1'), ('_A:0', '_C:2'), ('_A:0', '_C:3'), ('_A:0', '_C:4'), ('_A:1', '_C:1'), ('_A:1', '_C:2'), ('_A:1', '_C:3'), ('_A:1', '_C:4'), ('_A:2', '_C:1'), ('_A:2', '_C:2'), ('_A:2', '_C:3'), ('_A:2', '_C:4'), ('_B:0', '_C:1'), ('_B:0', '_C:2'), ('_B:0', '_C:3'), ('_B:0', '_C:4'), ('_B:1', '_C:1'), ('_B:1', '_C:2'), ('_B:1', '_C:3'), ('_B:1', '_C:4')]"""
+    combs_with_values = [list(product(*[[coverage_name.replace('X', '%s:%d' % (c, i)) for i in OPTIONS[c]]
+                                        for c in comb]))
+                         for comb in combinations(from_coverages, order)]
+    return list(chain(*combs_with_values))
 
 
 if __name__ == '__main__':
