@@ -153,7 +153,7 @@ estimators = {'categorical': SGDClassifier(n_iter=50),
 
 
 for a in [0.0004, 0.0001, 0.00003, 0.00001]:
-    eval(SGDClassifier(shuffle=True, n_iter=100, n_jobs=-1, alpha=a),
+    eval(EachTaskIndependently(SGDClassifier(shuffle=True, n_iter=100, n_jobs=-1, alpha=a)),
          include_variables=l2, interacting_variables=create_interactions('last_X'))
     print('alpha=%f' % a)
     print('=' * 60)
