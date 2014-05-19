@@ -186,8 +186,10 @@ l4 = ['C_previous',
 #    print('for', C)
 #    print('=' * 60)
 
-eval(JointEstimator([LastQuotedOnCategoricalLastX()] * 4), x_transformation=lambda x: x.toarray(), include_variables=l5,
-     wrapper_and_unwrapper=create_wrapper_and_unwrapper([0, 3], [1], [2, 4], [5, 6]))
+eval(EachTaskIndependentlyWithRules(LastQuotedOnCategoricalLastX(),
+                                    [('0011004', '0011002')]), include_variables=l5, x_transformation=lambda x: x.toarray())
+#eval(JointEstimator([LastQuotedOnCategoricalLastX()] * 4), x_transformation=lambda x: x.toarray(), include_variables=l5,
+#     wrapper_and_unwrapper=create_wrapper_and_unwrapper([0, 3], [1], [2, 4], [5, 6]))
 
 #eval(SGDClassifier(shuffle=True, n_iter=50, n_jobs=-1, alpha=0.0004),
 #     y_transformation=lambda y: y[:, 2], include_variables=l2)

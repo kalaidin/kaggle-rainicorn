@@ -33,7 +33,6 @@ class LastQuotedOnCategoricalLastX(BaseEstimator):
         return y
 
 
-
 class LastQuoted(BaseEstimator):
     def __init__(self, feature_names=None):
         assert feature_names is not None, 'feature_names must be specified'
@@ -80,6 +79,33 @@ class EachTaskIndependently(BaseEstimator):
     def predict(self, X):
         return np.vstack([e.predict(X) for e in self.task_estimators]).T
 
+class EachTaskIndependentlyWithRules(BaseEstimator):
+    def __init__(self, estimator, rules):
+        self.estimator = estimator
+        self.rules = rules
+    def fit(self, X, y, sample_weight=None):
+        task_estimators = []
+        for i in range(y.shape[1]):
+            e = clone(self.estimator)
+            try:
+                e.fit(X, y[:, i], sample_weight=sample_weight)
+            except TypeError:
+                print("Seems like %s doesn't support `sample_weight` argument. Ignoring it" % str(e),
+                      file=sys.stderr)
+                e.fit(X, y[:, i])
+            print('train score %d: %0.3f' % (i, weighted_score(y[:, i], e.predict(X), sample_weight)))
+            task_estimators.append(e)
+        self.task_estimators = task_estimators
+
+    def predict(self, X):
+        y = np.vstack([e.predict(X) for e in self.task_estimators]).T
+        for rule in self.rules:
+            source = np.array([int(c) for c in rule[0]])
+            dest = np.array([int(c) for c in rule[1]])
+            y[(y == source).all(axis=1)] = dest
+        return y
+
+
 
 def _to_ordinal(continuous_values, thresholds, labels):
     """ Convert continuous value into ordinal given its thresholds and labels
@@ -94,46 +120,6 @@ def _to_ordinal(continuous_values, thresholds, labels):
         ordinal_values[np.logical_and(continuous_values >= thresholds[i],
                                       continuous_values < thresholds[i + 1])] = labels[i + 1]
     return ordinal_values
-
-
-#def _best_threshold(actual_y, predicted_y, labels, sample_weight=None):
-#    """
-#    >>> c = lambda *x: np.array(x)
-#    >>> _best_threshold(c(0, 0, 1, 1), c(0.4, -1, 0.4001, 0.7), c(0, 1), None)
-#    array([0.4])
-#    """
-#    initial_thresholds = (labels[1:] + labels[:-1]) / 2
-#    f = lambda optim_thresh: weighted_score(actual_y, _to_ordinal(predicted_y, optim_thresh, labels),
-#                                            sample_weight)
-#    return fmin(f, initial_thresholds, disp=0)
-
-
-#class AsOrdinal2(BaseEstimator):
-#    """estimator must be a regressor not a classifier"""
-#    def __init__(self, estimator):
-#        self.estimator = estimator
-#
-#    def fit(self, X, y, sample_weight=None):
-#        assert isinstance(y, np.ndarray)
-#        assert len(y.shape) == 1, "only one-dimensional target is supported"
-#
-#        try:
-#            self.estimator.fit(X, y, sample_weight=sample_weight)
-#        except TypeError:
-#            print("%s doesn't support `sample_weight`. Ignoring it.")
-#            self.estimator.fit(X, y)
-#
-#        y_hat = self.estimator.predict(X)
-#
-#        self.labels = np.unique(y)
-#        self.labels.sort()
-#
-#        self.thresholds = _best_threshold(y, y_hat, self.labels, sample_weight=sample_weight)
-#
-#        print('thresholds', self.thresholds)
-#
-#    def predict(self, X):
-#        return _to_ordinal(self.estimator.predict(X), self.thresholds, self.labels)
 
 
 class AsOrdinal(BaseEstimator):
