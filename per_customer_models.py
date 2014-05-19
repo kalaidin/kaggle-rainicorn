@@ -6,7 +6,6 @@ import sys
 from commons import *
 import numpy as np
 from sklearn.base import BaseEstimator, clone
-from per_customer_eval import weighted_score
 
 
 class LastQuotedOnCategoricalLastX(BaseEstimator):
@@ -220,6 +219,58 @@ class JointEstimator(BaseEstimator):
             self.fitted_estimators.append(estimator)
     def predict(self, X):
         return np.hstack([e.predict(X)[:, np.newaxis] for e in self.fitted_estimators])
+
+
+def compress(columns):
+    """Converts many columns into a single one
+    >>> compress(np.array([[0, 1], [2, 3]]))
+    array([10, 32])"""
+    n = columns.shape[1]
+    single_column = np.zeros(columns.shape[0], dtype='int')
+    for i in range(n):
+        single_column += columns[:, i] * 10**i
+    return single_column
+
+
+def decompress(values):
+    """Reverse of compress
+    >>> decompress(np.array([10, 32]))
+    array([[0, 1],
+           [2, 3]])
+    >>> r = np.random.random_integers(0, 5, size=(10, 3))
+    >>> np.all(r == decompress(compress(r)))
+    True"""
+    v = np.array(values)
+    columns = []
+    while np.max(v) > 0:
+        columns.append(np.mod(v, 10)[:, np.newaxis])
+        v //= 10
+    return np.hstack(columns)
+
+
+def inv(perm):
+    inverse = [0] * len(perm)
+    for i, p in enumerate(perm):
+        inverse[p] = i
+    return inverse
+
+
+def create_wrapper_and_unwrapper(*rulesets):
+    """returns 2 functions.
+    >>> w, uw = create_wrapper_and_unwrapper([2, 0], [1])
+    >>> w(np.array([[0, 1, 4], [2, 3, 0]]))
+    array([[ 4,  1],
+           [20,  3]])
+    >>> uw(w(np.array([[0, 1, 4], [2, 3, 0]])))
+    array([[0, 1, 4],
+           [2, 3, 0]])"""
+    if not rulesets:
+        return identity, identity
+    def wrapper(y):
+        return np.hstack([compress(y[:, cs])[:, np.newaxis] for cs in rulesets])
+    def unwrapper(y):
+        return np.hstack([decompress(y[:, i]) for i in range(y.shape[1])])[:, inv(list(chain(*rulesets)))]
+    return wrapper, unwrapper
 
 
 if __name__ == '__main__':

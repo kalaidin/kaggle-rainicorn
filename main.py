@@ -154,7 +154,7 @@ def report(res):
 #eval(EachTaskIndependently(SGDClassifier(shuffle=True, n_iter=90, n_jobs=-1, alpha=0.0004)),
 #         include_variables=l2, interacting_variables=create_interactions('last_X', order=3))
 
-l5 = ['C_previous',
+l5 = [
           'last_A',
           'last_B',
           'last_C',
@@ -186,7 +186,8 @@ l4 = ['C_previous',
 #    print('for', C)
 #    print('=' * 60)
 
-eval(JointEstimator([LastQuotedOnCategoricalLastX()] * 7), x_transformation=lambda x: x.toarray(), include_variables=l4)
+eval(JointEstimator([LastQuotedOnCategoricalLastX()] * 4), x_transformation=lambda x: x.toarray(), include_variables=l5,
+     wrapper_and_unwrapper=create_wrapper_and_unwrapper([0, 3], [1], [2, 4], [5, 6]))
 
 #eval(SGDClassifier(shuffle=True, n_iter=50, n_jobs=-1, alpha=0.0004),
 #     y_transformation=lambda y: y[:, 2], include_variables=l2)

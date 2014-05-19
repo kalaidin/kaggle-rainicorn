@@ -114,6 +114,25 @@ def identity(value):
     return value
 
 
+def weighted_score(actual, predicted, sample_weight=None):
+    """
+    >>> import numpy as np
+    >>> a = np.array([[1, 1], [1, 2]])
+    >>> p = np.array([[1, 0], [1, 2]])
+    >>> w = np.array([0.7, 0.3])
+    >>> '%0.1f' % weighted_score(a, p, w)
+    '0.3'
+    """
+    assert isinstance(actual, np.ndarray)
+    assert isinstance(predicted, np.ndarray)
+    assert (sample_weight is None) or isinstance(sample_weight, np.ndarray)
+    if sample_weight is None:
+        sample_weight = np.ones(actual.shape)
+
+    corrects = actual == predicted if len(actual.shape) == 1 else np.all(actual == predicted, axis=1)
+    return np.sum(corrects * sample_weight) / sum(sample_weight)
+
+
 def ranged_value(value, thresholds, labels):
     """
     >>> ranged_value(3, [1, 2], ['a', 'b', 'c'])
