@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 from collections import defaultdict
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.linear_model import SGDRegressor, SGDClassifier
-from sklearn.svm import LinearSVC, SVC
-import sys
+from operator import itemgetter
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import SGDClassifier
 from functools import partial
 
 from per_customer_eval import *
@@ -128,23 +127,23 @@ l_cont = ['viewed_A',
 
 def report(res):
     print('=' * 60)
-    for k, ss in res.items():
+    for k, ss in sorted(res.items(), key=itemgetter(1)):
         print('%s: %f (min=%f, max=%f, sd=%f)' % (k, np.mean(ss), np.min(ss), np.max(ss), np.std(ss)))
     print('-' * 60)
     print(dict(res))
     print('=' * 60)
 
-common_props = {'shuffle': True, 'n_jobs': -1, 'alpha': 0.0004}
-estimators = {'categorical': SGDClassifier(n_iter=50),
-              'ordinal': AsOrdinal(SGDClassifier(loss='log', n_iter=100, **common_props))}
 
 #res = defaultdict(lambda *x: [])
-#for cov_i, cov in enumerate(COVERAGE):
-#    for est_type in ['categorical', 'ordinal']:
-#        for i in range(30):
-#            s = eval(estimators[est_type], include_variables=l_cont, y_transformation=lambda y: y[:, cov_i])
-#            res[(cov, est_type)].append(s)
-#        report(res)
+#report(res)
+#for n_estimators in [50, 200, 1000]:
+#    for min_samples_split in [1000, 650, 400, 200]:
+#        for cov_i, cov in enumerate(COVERAGE):
+#            for i in range(3):
+#                s = eval(RandomForestClassifier(n_estimators=n_estimators, n_jobs=-1, min_samples_split=min_samples_split),
+#                    x_transformation=lambda x: x.todense(), include_variables=l4, y_transformation=lambda y: y[:, cov_i])
+#                res[(cov, n_estimators, min_samples_split)].append(s)
+#            report(res)
 #report(res)
 
 #eval(SGDClassifier(shuffle=True, loss='log', n_iter=50), y_transformation=lambda y: y[:, 0], include_variables=l_cont)
@@ -152,8 +151,42 @@ estimators = {'categorical': SGDClassifier(n_iter=50),
 #     y_transformation=lambda y: y[:, 2], include_variables=l2)
 
 
-eval(EachTaskIndependently(SGDClassifier(shuffle=True, n_iter=90, n_jobs=-1, alpha=0.0004)),
-         include_variables=l2, interacting_variables=create_interactions('last_X'))
+#eval(EachTaskIndependently(SGDClassifier(shuffle=True, n_iter=90, n_jobs=-1, alpha=0.0004)),
+#         include_variables=l2, interacting_variables=create_interactions('last_X', order=3))
+
+l5 = ['C_previous',
+          'last_A',
+          'last_B',
+          'last_C',
+          'last_D',
+          'last_E',
+          'last_F',
+          'last_G',]
+
+
+l4 = ['C_previous',
+      'last_A',
+      'last_B',
+      'last_C',
+      'last_D',
+      'last_E',
+      'last_F',
+      'last_G',
+      'viewed_A',
+      'viewed_B',
+      'viewed_C',
+      'viewed_D',
+      'viewed_E',
+      'viewed_F',
+      'viewed_G']
+
+#for i, C in enumerate(COVERAGE):
+#    eval(LastQuotedOnCategoricalLastX(),
+#         x_transformation=lambda x: x.toarray(), include_variables=l5, y_transformation=lambda y: y[:, i])
+#    print('for', C)
+#    print('=' * 60)
+
+eval(JointEstimator([LastQuotedOnCategoricalLastX()] * 7), x_transformation=lambda x: x.toarray(), include_variables=l4)
 
 #eval(SGDClassifier(shuffle=True, n_iter=50, n_jobs=-1, alpha=0.0004),
 #     y_transformation=lambda y: y[:, 2], include_variables=l2)

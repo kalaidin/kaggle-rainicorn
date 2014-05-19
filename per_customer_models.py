@@ -9,6 +9,32 @@ from sklearn.base import BaseEstimator, clone
 from per_customer_eval import weighted_score
 
 
+class LastQuotedOnCategoricalLastX(BaseEstimator):
+    def __init__(self):
+        pass
+    def fit(self, X, y, sample_weight=None):
+        labels = np.unique(y)
+        labels.sort()
+        self.columns = {}
+        for lab in labels:
+            cat_y = y == lab
+            best_matches = 0
+            self.columns[lab] = -1
+            for c_id in range(X.shape[1]):
+                x = X[:, c_id]
+                if sorted(np.unique(x)) == [0, 1]:
+                    matches = ((x == 1) == cat_y).sum()
+                    if matches > best_matches:
+                        self.columns[lab] = c_id
+                        best_matches = matches
+    def predict(self, X):
+        y = np.zeros(X.shape[0])
+        for label in self.columns:
+            y[X[:, self.columns[label]] == 1] = label
+        return y
+
+
+
 class LastQuoted(BaseEstimator):
     def __init__(self, feature_names=None):
         assert feature_names is not None, 'feature_names must be specified'
@@ -176,6 +202,24 @@ def create_interactions(coverage_name='last_X', order=2, from_coverages=COVERAGE
                                         for c in comb]))
                          for comb in combinations(from_coverages, order)]
     return list(chain(*combs_with_values))
+
+
+class JointEstimator(BaseEstimator):
+    def __init__(self, estimators):
+        self.estimators = estimators
+    def fit(self, X, y, sample_weight=None):
+        assert len(self.estimators) == y.shape[1], 'There must be an estimator for each y task'
+        self.fitted_estimators = []
+        for i, e in enumerate(self.estimators):
+            estimator = clone(e)
+            try:
+                estimator.fit(X, y[:, i], sample_weight=sample_weight)
+            except:
+                print('%s no sample_weight. Use without it.' % str(estimator))
+                estimator.fit(X, y[:, i])
+            self.fitted_estimators.append(estimator)
+    def predict(self, X):
+        return np.hstack([e.predict(X)[:, np.newaxis] for e in self.fitted_estimators])
 
 
 if __name__ == '__main__':
